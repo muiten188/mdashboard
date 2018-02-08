@@ -13,10 +13,12 @@ import {
   ScrollView,
   FlatList,
   ListItem,
-  AsyncStorage
+  AsyncStorage,
+  Alert
 } from 'react-native';
 import { Picker, Item, Label, Spinner, Badge } from 'native-base';
 import FListItem from './listItem';
+import MyDate from './date';
 import { Col, Row, Grid } from "react-native-easy-grid";
 const mqtt = require('react-native-mqtt');
 let currentSlice = 0;
@@ -36,50 +38,108 @@ function guid() {
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
     s4() + '-' + s4() + s4() + s4();
 }
+const clientId = guid();
 export default class App extends Component {
   constructor(props) {
     super(props)
-
+    let lcd = "";
     this.state = {
       tableData: [],
       arrayShow: [],
-      selected1: 'LCD001',
+      selected1: lcd,
+      segment: '',
       loadding: true,
       newMessage: false,
-      change: 0
+      change: 0,
+      arrLCD: [],
+      arrSegment: []
     }
 
   }
 
   componentDidMount() {
-    // AsyncStorage.getItem("@tableData").then((value) => {
-    //   if (value) {
-
-    //     const msgObj = JSON.parse(value);
-    //     const tableData = msgObj.data;
-    //     interval = window.setInterval(() => {
-    //       const arrayShow = tableData.slice(currentSlice, endSilce);
-    //       currentSlice = currentSlice + numberRow;
-    //       endSilce = endSilce + numberRow;
-    //       if (currentSlice >= tableData.length) {
-    //         currentSlice = 0;
-    //         endSilce = 5;
-    //       }
-    //       this.setState({
-    //         arrayShow: arrayShow,
-    //         loadding: false
-    //       })
-    //     }, 2000)
-    //   }
-    // }).catch(() => { debugger; })
-    this.createClient(this.state.selected1);
+    let arrLCD = [];
+    let arrSegment = [];
+    this.getLCD_Segment()
   }
 
-  createClient(topic) {
+  async getLCD_Segment() {
+    let arrLCD = [];
+    let arrSegment = [];
+    try {
+      let responseLCD = await fetch("http://113.171.23.140/manuafactory/api/devices/all", {
+        method: 'GET',
+        headers: new Headers({
+          'Content-Type': 'application/json'
+        }, ),
+        async: false
+      })
+      arrLCD = await responseLCD.json()
+      if (arrLCD.length <= 0) {
+        Alert.alert("Thông báo", "Không có LCD nào trong dữ liệu, vui lòng tạo LCD vào khởi động lại app.");
+      }
+
+    } catch (error) {
+      Alert.alert("Thông báo", "Ko lấy được danh sách LCD kiểm tra lại kết nối.");
+    }
+    try {
+      let responseSegment = await fetch("http://113.171.23.140/manuafactory/api/segments/", {
+        method: 'GET',
+        headers: new Headers({
+          'Content-Type': 'application/json'
+        }, ),
+        async: false
+      })
+      arrSegment = await responseSegment.json()
+      if (arrSegment.length <= 0) {
+        Alert.alert("Thông báo", "Không có Ca nào trong dữ liệu, vui lòng tạo Ca vào khởi động lại app.");
+      }
+
+    } catch (error) {
+      Alert.alert("Thông báo", "Ko lấy được danh sách Ca kiểm tra lại kết nối.");
+    }
+    if (arrLCD.length > 0 && arrSegment.length > 0) {
+      AsyncStorage.multiGet(['@LCD', '@SEGMENT'], (err, values) => {
+        let lcd = "";
+        let segment = "";
+        if (values.length > 0) {
+          values.map((result, i, store) => {
+            let key = store[i][0];
+            let value = store[i][1];
+            if (key == "@LCD" && value != null && value != '') {
+              lcd = value;
+            }
+            else if (key == "@SEGMENT" && value != null && value != '') {
+              segment = value;
+              // this.setState({ arrLCD: arrSegment, segment: value });
+              // this.createClient(value);
+            }
+          });
+          if (segment != '' && segment != null && lcd != "" && lcd != null) {
+            this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: Number(segment), selected1: lcd });
+            this.createClient(lcd, segment);
+          }
+          else {
+            this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0], selected1: arrLCD[0] });
+            this.createClient(arrLCD[0].deviceTopic, arrSegment[0].segmentId);
+          }
+        }
+        else {
+          this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0], selected1: arrLCD[0] });
+          this.createClient(arrLCD[0].deviceTopic, arrSegment[0].segmentId);
+        }
+      }).catch(() => {
+        this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0], selected1: arrLCD[0] });
+        this.createClient(arrLCD[0].deviceTopic, arrSegment[0].segmentId);
+      })
+    }
+  }
+
+  createClient(topic, segmentId) {
     /* create mqtt client */
     mqtt.createClient({
       uri: 'tcp://113.171.23.202:1883',
-      clientId: 'tcp/incoming/' + topic + "/" + guid()
+      clientId: 'tcp/incoming/' + topic + "/" + clientId
     }).then((client) => {
       mqttClient = client;
       client.on('closed', function () {
@@ -92,26 +152,22 @@ export default class App extends Component {
 
       client.on('message', this.onMessageMqtt.bind(this));
 
-      let req = { request: { topic: topic } };
+      let req = { request: { topic: topic, segment: segmentId, clientId: clientId } };
 
       client.on('connect', function () {
-        //alert('connected');
         client.subscribe('tcp/incoming/' + topic, 2);
         client.publish('tcp/outgoing/request', JSON.stringify(req), 2, false);
       });
 
       client.connect();
     }).catch(function (err) {
-      debugger;
       alert(err);
     });
   }
 
   onMessageMqtt(msg) {
-
+    debugger;
     AsyncStorage.setItem("@tableData", msg.data);
-
-
     this.bindInterVal(msg);
 
   }
@@ -119,6 +175,9 @@ export default class App extends Component {
   bindInterVal(msg) {
     const msgObj = JSON.parse(msg.data);
     let tableData = msgObj.data;
+    if (msgObj.clientId != clientId && msgObj.clientId != "all") {
+      return;
+    }
     if (interval) {
       window.clearInterval(interval);
     }
@@ -127,7 +186,7 @@ export default class App extends Component {
     }
     const objTableData = this.bindArrMachine(tableData);
     subInterVal = window.setInterval(() => {
-      console.log('change array');
+      //console.log('change array');
       for (var i = 0; i < objTableData.arrMultilMachine.length; i++) {
         let arrMulti = objTableData.arrMultilMachine[i];
         for (var j = 0; j < arrMulti.length; j++) {
@@ -139,7 +198,7 @@ export default class App extends Component {
           else {
             nextItem = arrMulti[j + 1];
           }
-          if (objTableData.arrSingleMachine.indexOf(item) > -1) {
+          if (this.state.arrayShow.indexOf(item) > -1 && objTableData.arrSingleMachine.indexOf(item) > -1) {
             objTableData.arrSingleMachine[objTableData.arrSingleMachine.indexOf(item)] = nextItem;
             break;
           }
@@ -167,7 +226,7 @@ export default class App extends Component {
           change: this.state.change == 0 ? 1 : 0
         })
       }
-    }, 1500);
+    }, 3000);
     currentSlice = 0;
     endSilce = 5;
     const arrayShow = objTableData.arrSingleMachine.slice(currentSlice, endSilce);
@@ -194,7 +253,7 @@ export default class App extends Component {
         arrayShow: arrayShow,
         loadding: false
       })
-    }, 6000)
+    }, 13000)
     if (newMesTimeout) {
       clearTimeout(newMesTimeout);
     }
@@ -239,39 +298,69 @@ export default class App extends Component {
   }
 
   render() {
-    const { tableData, arrayShow, newMessage } = this.state;
+    const { tableData, arrayShow, newMessage, arrLCD, arrSegment } = this.state;
     return (
       <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+        {/* this.state.loadding */}
         {this.state.loadding ? <View style={{
           position: 'absolute', top: 0, right: 0, left: 0, bottom: 0, justifyContent: 'center',
           alignItems: 'center', zIndex: 99999
         }}>
           <Spinner size={60} />
         </View> : null}
-        <Item>
-          <Label style={{ color: '#fefefe', fontSize: 24, marginLeft: 6, marginRight: 6 }}>Màn hình</Label>
-          <Picker
-            style={{ width: 200, height: 40, color: 'red' }}
-            itemTextStyle={{ fontSize: 12, color: 'yellow' }}
-            iosHeader="Select one"
-            mode="dropdown"
-            selectedValue={this.state.selected1}
-            onValueChange={this.onValueChange.bind(this)}
-          >
-            {
-              ["LCD001", "LCD004"].map((item, index) => {
-                return (<Item key={index} label={item} value={item} />)
-              })
-            }
-          </Picker>
-          {newMessage ?
-            <Badge style={{
-              backgroundColor: '#00A000', position: 'absolute',
-              right: 6, justifyContent: 'center', marginTop: 6
-            }}>
-              <Text style={{ fontSize: 22 }}>Dữ liệu mới nhận</Text>
-            </Badge> : null}
-        </Item>
+        <View style={styles.rowTitle}>
+          <View style={styles.rowTitleCon}>
+            <View style={styles.logoCon}>
+              <Text style={styles.logoTitle}>ASIA DRAGON CORD & TWINE</Text>
+              <Item>
+                <Text style={styles.logoTitle}>Ca: </Text>
+                <Picker
+                  style={{ width: 90, height: 30, color: "#e7fdfd" }}
+                  iosHeader="Select one"
+                  mode="dropdown"
+                  selectedValue={this.state.segment}
+                  onValueChange={this.onSegmentChange.bind(this)}
+                >
+                  {
+                    arrSegment.map((item, index) => {
+                      return (<Item key={index} label={item.segmentName} value={item.segmentId} />)
+                    })
+                  }
+                </Picker></Item>
+              <Item style={styles.itemBorderNone}>
+                <Text style={styles.logoTitle}>Màn hình: </Text>
+                <Picker
+                  style={{ width: 110, height: 30, color: "#e7fdfd" }}
+                  iosHeader="Select one"
+                  mode="dropdown"
+                  selectedValue={this.state.selected1}
+                  onValueChange={this.onValueChange.bind(this)}
+                >
+                  {
+                    arrLCD.map((item, index) => {
+                      return (<Item key={index} label={item.deviceName} value={item.deviceTopic} />)
+                    })
+                  }
+                </Picker>
+              </Item>
+            </View>
+            <View style={styles.titleCon}>
+              <Text style={styles.title}>BẢNG THEO DÕI SẢN XUẤT</Text>
+              {newMessage ?
+                <Badge style={{
+                  backgroundColor: '#00A000', position: 'absolute',
+                  bottom: 3, opacity: 0.8,
+                  right: 0, justifyContent: 'center', marginTop: 6
+                }}>
+                  <Text style={{ fontSize: 22 }}>Dữ liệu mới nhận</Text>
+                </Badge> : null}
+            </View>
+            <View style={styles.dateCon}>
+              <MyDate></MyDate>
+            </View>
+          </View>
+
+        </View>
 
         <Grid style={{ flex: 1, paddingRight: 2 }}>
           <Row style={{ maxHeight: 90 }}>
@@ -327,6 +416,7 @@ export default class App extends Component {
   }
 
   onValueChange(value) {
+    AsyncStorage.setItem('@LCD', value);
     if (interval) {
       window.clearInterval(interval);
     }
@@ -337,7 +427,7 @@ export default class App extends Component {
       selected1: value,
       loadding: true
     });
-    let req = { request: { topic: value } };
+    let req = { request: { topic: value, segment: this.state.segment, clientId: clientId } };
     if (!mqttClient) {
       this.createClient(value);
     }
@@ -347,6 +437,28 @@ export default class App extends Component {
     }
 
     //this.createClient(value);
+  }
+
+  onSegmentChange(value) {
+    AsyncStorage.setItem('@SEGMENT', value.toString());
+    if (interval) {
+      window.clearInterval(interval);
+    }
+    if (subInterVal) {
+      window.clearInterval(subInterVal);
+    }
+    this.setState({
+      segment: value,
+      loadding: true
+    });
+    let req = { request: { topic: this.state.selected1, segment: value, clientId: clientId } };
+    if (!mqttClient) {
+      this.createClient(value);
+    }
+    else {
+      mqttClient.subscribe('tcp/incoming/' + value, 2);
+      mqttClient.publish('tcp/outgoing/request', JSON.stringify(req), 2, false);
+    }
   }
 
   _keyExtractor(item, index) {
@@ -366,8 +478,46 @@ const styles = StyleSheet.create({
     borderWidth: 0.25,
     borderColor: '#d6d7da',
   },
+  itemBorderNone: {
+    borderBottomWidth: 0
+  },
+  rowTitle: {
+    width: "100%",
+    height: 100,
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
   head: { minHeight: 50, backgroundColor: '#f1f8ff' },
+  rowTitleCon: {
+    flex: 1,
+    flexDirection: 'row'
+  },
+  logoTitle: {
+    color: "#e7fdfd",
+    fontSize: 22
+  },
+  logoCon: {
+    width: 350,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  titleCon: {
+    justifyContent: 'center',
+    flex: 1
+  },
+  title: {
+    color: '#fff',
+    fontSize: 43
+  },
+  dateCon: {
+    width: 140,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   text: { marginLeft: 5, textAlign: 'center' },
+  rowHeader: { height: 100 },
   row: { height: 50 },
-  text: { color: 'red', fontSize: 22, textAlign: 'center' }
+  text: { color: '#efc373', fontSize: 22, textAlign: 'center' }
 });

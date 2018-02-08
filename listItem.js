@@ -8,11 +8,11 @@ import {
 } from 'react-native';
 import { Col, Row, Grid } from "react-native-easy-grid";
 export default class FListItem extends Component {
-
+    
     render() {
         const { dataItem } = this.props;
         return (
-            <Row>
+            <Row style={styles.row}>
                 <Col style={[styles.colBorder, { paddingTop: 8, paddingBottom: 8 }]}>
                     <Text style={styles.text}>{dataItem.machine}</Text>
                 </Col>
@@ -68,6 +68,6 @@ const styles = StyleSheet.create({
     },
     head: { minHeight: 50, backgroundColor: '#f1f8ff' },
     text: { marginLeft: 5, textAlign: 'center', },
-    row: { height: 50 },
-    text: { color: 'red', fontSize: 18, textAlign: 'center' }
+    row: { height: 60 },
+    text: { color: '#e1e8af', fontWeight: "400", fontSize: 18, textAlign: 'center' }
 });
