@@ -497,18 +497,19 @@ const styles = StyleSheet.create({
     fontSize: 22
   },
   logoCon: {
-    width: 350,
+    width: 320,
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center'
   },
   titleCon: {
     justifyContent: 'center',
+    alignItems:'center',
     flex: 1
   },
   title: {
     color: '#fff',
-    fontSize: 43
+    fontSize: 35
   },
   dateCon: {
     width: 140,
