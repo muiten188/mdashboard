@@ -38,11 +38,12 @@ function guid() {
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
     s4() + '-' + s4() + s4() + s4();
 }
-const clientId = guid();
+const clientId = "";
 export default class App extends Component {
   constructor(props) {
     super(props)
     let lcd = "";
+    clientId = guid();
     this.state = {
       tableData: [],
       arrayShow: [],
@@ -115,7 +116,6 @@ export default class App extends Component {
               // this.createClient(value);
             }
           });
-          debugger;
           if (segment != '' && segment != null && lcd != "" && lcd != null) {
             this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: Number(segment), selected1: lcd });
             this.createClient(lcd, segment);
