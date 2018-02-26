@@ -115,21 +115,30 @@ export default class App extends Component {
               // this.createClient(value);
             }
           });
+          debugger;
           if (segment != '' && segment != null && lcd != "" && lcd != null) {
             this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: Number(segment), selected1: lcd });
             this.createClient(lcd, segment);
           }
+          else if ((segment == '' || segment == null) && (lcd != "" && lcd != null)) {
+            this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0].segmentId, selected1: lcd });
+            this.createClient(lcd, arrSegment[0].segmentId);
+          }
+          else if (segment != '' && segment != null && (lcd == "" || lcd == null)) {
+            this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: Number(segment), selected1: arrLCD[0].deviceTopic });
+            this.createClient(arrLCD[0].deviceTopic, segment);
+          }
           else {
-            this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0], selected1: arrLCD[0] });
+            this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0].segmentId, selected1: arrLCD[0].deviceTopic });
             this.createClient(arrLCD[0].deviceTopic, arrSegment[0].segmentId);
           }
         }
         else {
-          this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0], selected1: arrLCD[0] });
+          this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0].segmentId, selected1: arrLCD[0].deviceTopic });
           this.createClient(arrLCD[0].deviceTopic, arrSegment[0].segmentId);
         }
       }).catch(() => {
-        this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0], selected1: arrLCD[0] });
+        this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0].segmentId, selected1: arrLCD[0].deviceTopic });
         this.createClient(arrLCD[0].deviceTopic, arrSegment[0].segmentId);
       })
     }
@@ -166,7 +175,7 @@ export default class App extends Component {
   }
 
   onMessageMqtt(msg) {
-    debugger;
+
     AsyncStorage.setItem("@tableData", msg.data);
     this.bindInterVal(msg);
 
@@ -423,6 +432,7 @@ export default class App extends Component {
     if (subInterVal) {
       window.clearInterval(subInterVal);
     }
+    debugger;
     this.setState({
       selected1: value,
       loadding: true
@@ -451,6 +461,7 @@ export default class App extends Component {
       segment: value,
       loadding: true
     });
+
     let req = { request: { topic: this.state.selected1, segment: value, clientId: clientId } };
     if (!mqttClient) {
       this.createClient(value);
@@ -497,14 +508,13 @@ const styles = StyleSheet.create({
     fontSize: 22
   },
   logoCon: {
-    width: 320,
+    width: 350,
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center'
   },
   titleCon: {
     justifyContent: 'center',
-    alignItems:'center',
     flex: 1
   },
   title: {

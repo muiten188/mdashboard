@@ -23,9 +23,18 @@ export default class MyDate extends Component {
             let dateNow = new Date();
             this.setState({
                 curTime: dateNow.toLocaleTimeString(),
-                curDate: dateNow.toLocaleDateString()
+                curDate: this.formatDate(dateNow)
             })
         }, 1000)
+    }
+
+    formatDate(date) {
+        // var hour = date.getHours();
+        // var minutes = date.getMinutes();
+        var day = date.getDate();
+        var monthIndex = date.getMonth() + 1;
+        var year = date.getFullYear();
+        return day + "/" + monthIndex + "/" + year;
     }
 
     render() {
