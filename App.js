@@ -116,10 +116,11 @@ export default class App extends Component {
               // this.createClient(value);
             }
           });
+          
           if (this.checkExitsInArr(lcd, arrLCD, 'deviceTopic') == false) {
             lcd = arrLCD[0].deviceTopic;
           }
-          if (this.checkExitsInArr(lcd, arrLCD, 'segmentId') == false) {
+          if (this.checkExitsInArr(segment, arrSegment, 'segmentId') == false) {
             segment = arrSegment[0].segmentId;
           }
           if (segment != '' && segment != null && lcd != "" && lcd != null) {
@@ -450,7 +451,7 @@ export default class App extends Component {
     if (subInterVal) {
       window.clearInterval(subInterVal);
     }
-    debugger;
+    
     this.setState({
       selected1: value,
       loadding: true
