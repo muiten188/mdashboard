@@ -116,6 +116,12 @@ export default class App extends Component {
               // this.createClient(value);
             }
           });
+          if (this.checkExitsInArr(lcd, arrLCD, 'deviceTopic') == false) {
+            lcd = arrLCD[0].deviceTopic;
+          }
+          if (this.checkExitsInArr(lcd, arrLCD, 'segmentId') == false) {
+            segment = arrSegment[0].segmentId;
+          }
           if (segment != '' && segment != null && lcd != "" && lcd != null) {
             this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: Number(segment), selected1: lcd });
             this.createClient(lcd, segment);
@@ -142,6 +148,18 @@ export default class App extends Component {
         this.createClient(arrLCD[0].deviceTopic, arrSegment[0].segmentId);
       })
     }
+  }
+
+  checkExitsInArr(lcd, arrLcd, propety) {
+    let lcdItem = {};
+    for (var i = 0; i < arrLcd.length; i++) {
+      lcdItem = arrLcd[i];
+      if (lcdItem[propety] == lcd) {
+        return true;
+        break;
+      }
+    }
+    return false;
   }
 
   createClient(topic, segmentId) {
