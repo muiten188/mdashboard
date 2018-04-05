@@ -29,6 +29,7 @@ let arrMachine = [];
 let subInterVal = [];
 const mqttClient = null;
 const newMesTimeout = null;
+const connectInterval = null;
 function guid() {
   function s4() {
     return Math.floor((1 + Math.random()) * 0x10000)
@@ -43,32 +44,33 @@ export default class App extends Component {
   constructor(props) {
     super(props)
     let lcd = "";
-    clientId = guid();
+
     this.state = {
       tableData: [],
       arrayShow: [],
       selected1: lcd,
-      segment: '',
+      department: '',
       loadding: true,
       newMessage: false,
       change: 0,
       arrLCD: [],
-      arrSegment: []
+      arrDepartment: [],
+      appError: null
     }
 
   }
 
   componentDidMount() {
     let arrLCD = [];
-    let arrSegment = [];
-    this.getLCD_Segment()
+    let arrDepartment = [];
+    this.getLCD_department()
   }
 
-  async getLCD_Segment() {
+  async getLCD_department() {
     let arrLCD = [];
-    let arrSegment = [];
+    let arrDepartment = [];
     try {
-      let responseLCD = await fetch("http://113.171.23.140/manuafactory/api/devices/all", {
+      let responseLCD = await fetch("http://113.171.23.140:8081/manuafactory/api/devices/all", {
         method: 'GET',
         headers: new Headers({
           'Content-Type': 'application/json'
@@ -77,32 +79,32 @@ export default class App extends Component {
       })
       arrLCD = await responseLCD.json()
       if (arrLCD.length <= 0) {
-        Alert.alert("Thông báo", "Không có LCD nào trong dữ liệu, vui lòng tạo LCD vào khởi động lại app.");
+        this.setState({ appError: "Không có LCD nào trong dữ liệu, vui lòng tạo LCD vào khởi động lại app." });
       }
 
     } catch (error) {
-      Alert.alert("Thông báo", "Ko lấy được danh sách LCD kiểm tra lại kết nối.");
+      this.setState({ appError: "Ko lấy được danh sách LCD kiểm tra lại kết nối." });
     }
     try {
-      let responseSegment = await fetch("http://113.171.23.140/manuafactory/api/segments/", {
+      let responsedepartment = await fetch("http://113.171.23.140:8081/manuafactory/api/department/load-all", {
         method: 'GET',
         headers: new Headers({
           'Content-Type': 'application/json'
         }, ),
         async: false
       })
-      arrSegment = await responseSegment.json()
-      if (arrSegment.length <= 0) {
-        Alert.alert("Thông báo", "Không có Ca nào trong dữ liệu, vui lòng tạo Ca vào khởi động lại app.");
+      arrDepartment = await responsedepartment.json()
+      if (arrDepartment.length <= 0) {
+        this.setState({ appError: "Không có bộ phận nào trong dữ liệu, vui lòng tạo bộ phận vào khởi động lại app." });
       }
 
     } catch (error) {
-      Alert.alert("Thông báo", "Ko lấy được danh sách Ca kiểm tra lại kết nối.");
+      this.setState({ appError: "Ko lấy được danh sách bộ phận kiểm tra lại kết nối." });
     }
-    if (arrLCD.length > 0 && arrSegment.length > 0) {
-      AsyncStorage.multiGet(['@LCD', '@SEGMENT'], (err, values) => {
+    if (arrLCD.length > 0 && arrDepartment.length > 0) {
+      AsyncStorage.multiGet(['@LCD', '@department'], (err, values) => {
         let lcd = "";
-        let segment = "";
+        let department = "";
         if (values.length > 0) {
           values.map((result, i, store) => {
             let key = store[i][0];
@@ -110,43 +112,43 @@ export default class App extends Component {
             if (key == "@LCD" && value != null && value != '') {
               lcd = value;
             }
-            else if (key == "@SEGMENT" && value != null && value != '') {
-              segment = value;
-              // this.setState({ arrLCD: arrSegment, segment: value });
+            else if (key == "@department" && value != null && value != '') {
+              department = value;
+              // this.setState({ arrLCD: arrDepartment, department: value });
               // this.createClient(value);
             }
           });
-          
+
           if (this.checkExitsInArr(lcd, arrLCD, 'deviceTopic') == false) {
             lcd = arrLCD[0].deviceTopic;
           }
-          if (this.checkExitsInArr(segment, arrSegment, 'segmentId') == false) {
-            segment = arrSegment[0].segmentId;
+          if (this.checkExitsInArr(department ? Number(department) : 0, arrDepartment, 'departmentId') == false) {
+            department = arrDepartment[0].departmentId;
           }
-          if (segment != '' && segment != null && lcd != "" && lcd != null) {
-            this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: Number(segment), selected1: lcd });
-            this.createClient(lcd, segment);
+          if (department != '' && department != null && lcd != "" && lcd != null) {
+            this.setState({ arrDepartment: arrDepartment, arrLCD: arrLCD, department: Number(department), selected1: lcd });
+            this.createClient(lcd, department);
           }
-          else if ((segment == '' || segment == null) && (lcd != "" && lcd != null)) {
-            this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0].segmentId, selected1: lcd });
-            this.createClient(lcd, arrSegment[0].segmentId);
+          else if ((department == '' || department == null) && (lcd != "" && lcd != null)) {
+            this.setState({ arrDepartment: arrDepartment, arrLCD: arrLCD, department: arrDepartment[0].departmentId, selected1: lcd });
+            this.createClient(lcd, arrDepartment[0].departmentId);
           }
-          else if (segment != '' && segment != null && (lcd == "" || lcd == null)) {
-            this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: Number(segment), selected1: arrLCD[0].deviceTopic });
-            this.createClient(arrLCD[0].deviceTopic, segment);
+          else if (department != '' && department != null && (lcd == "" || lcd == null)) {
+            this.setState({ arrDepartment: arrDepartment, arrLCD: arrLCD, department: Number(department), selected1: arrLCD[0].deviceTopic });
+            this.createClient(arrLCD[0].deviceTopic, department);
           }
           else {
-            this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0].segmentId, selected1: arrLCD[0].deviceTopic });
-            this.createClient(arrLCD[0].deviceTopic, arrSegment[0].segmentId);
+            this.setState({ arrDepartment: arrDepartment, arrLCD: arrLCD, department: arrDepartment[0].departmentId, selected1: arrLCD[0].deviceTopic });
+            this.createClient(arrLCD[0].deviceTopic, arrDepartment[0].departmentId);
           }
         }
         else {
-          this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0].segmentId, selected1: arrLCD[0].deviceTopic });
-          this.createClient(arrLCD[0].deviceTopic, arrSegment[0].segmentId);
+          this.setState({ arrDepartment: arrDepartment, arrLCD: arrLCD, department: arrDepartment[0].departmentId, selected1: arrLCD[0].deviceTopic });
+          this.createClient(arrLCD[0].deviceTopic, arrDepartment[0].departmentId);
         }
       }).catch(() => {
-        this.setState({ arrSegment: arrSegment, arrLCD: arrLCD, segment: arrSegment[0].segmentId, selected1: arrLCD[0].deviceTopic });
-        this.createClient(arrLCD[0].deviceTopic, arrSegment[0].segmentId);
+        this.setState({ arrDepartment: arrDepartment, arrLCD: arrLCD, department: arrDepartment[0].departmentId, selected1: arrLCD[0].deviceTopic });
+        this.createClient(arrLCD[0].deviceTopic, arrDepartment[0].departmentId);
       })
     }
   }
@@ -163,38 +165,92 @@ export default class App extends Component {
     return false;
   }
 
-  createClient(topic, segmentId) {
+  createClient(topic, departmentId) {
     /* create mqtt client */
+    clientId = guid();
     mqtt.createClient({
-      uri: 'tcp://113.171.23.202:1883',
-      clientId: 'tcp/incoming/' + topic + "/" + clientId
+      uri: 'tcp://113.171.23.140:1883',
+      clientId: clientId,
+      keepalive: 60
     }).then((client) => {
       mqttClient = client;
-      client.on('closed', function () {
-        alert('kết nối đến server đã đóng');
-
+      client.on('closed', () => {
+        this.setState({ appError: 'kết nối đến server đã đóng' });
+        if (!mqttClient) {
+          this.setState({ appError: 'kết nối đến server đã đóng' });
+        }
+        if (!connectInterval) {
+          connectInterval = setInterval(() => {
+            this.reconnect(topic, departmentId);
+          }, 30000)
+        }
       });
-      client.on('error', function (msg) {
-        alert('Lỗi: ', msg);
+      client.on('error', (msg) => {
+        this.setState({ appError: "Lỗi: kết nối đến server thất bại." });
+        if (!connectInterval) {
+          connectInterval = setInterval(() => {
+            this.reconnect(topic, departmentId);
+          }, 30000)
+        }
       });
 
       client.on('message', this.onMessageMqtt.bind(this));
 
-      let req = { request: { topic: topic, segment: segmentId, clientId: clientId } };
+      let req = { request: { topic: topic, department: departmentId, clientId: clientId } };
 
-      client.on('connect', function () {
+      client.on('connect', () => {
+        this.setState({ appError: null });
+        if (connectInterval) {
+          clearInterval(connectInterval);
+        }
         client.subscribe('tcp/incoming/' + topic, 2);
         client.publish('tcp/outgoing/request', JSON.stringify(req), 2, false);
       });
 
       client.connect();
-    }).catch(function (err) {
-      alert(err);
+    }).catch((err) => {
+      this.setState({ appError: "Lỗi: kết nối đến server thất bại." });
+      if (connectInterval) {
+        clearInterval(connectInterval);
+      }
+      connectInterval = setInterval(() => {
+        this.reconnect(topic, departmentId);
+      }, 30000)
+    });
+  }
+
+  reconnect(topic, departmentId) {
+    clientId = guid();
+    this.setState({ appError: 'đang kết nối lại server' });
+    mqtt.createClient({
+      uri: 'tcp://113.171.23.140:1883',
+      clientId: clientId,
+      keepalive: 60
+    }).then((client) => {
+      mqttClient = client;
+      client.on('closed', () => {
+        this.setState({ appError: 'kết nối đến server đã đóng' });
+      });
+      client.on('error', (msg) => {
+        this.setState({ appError: "Lỗi: kết nối đến server thất bại." });
+      });
+      client.on('message', this.onMessageMqtt.bind(this));
+      let req = { request: { topic: topic, department: departmentId, clientId: clientId } };
+      client.on('connect', () => {
+        this.setState({ appError: null });
+        if (connectInterval) {
+          clearInterval(connectInterval);
+        }
+        client.subscribe('tcp/incoming/' + topic, 2);
+        client.publish('tcp/outgoing/request', JSON.stringify(req), 2, false);
+      });
+      client.connect();
+    }).catch((err) => {
+      this.setState({ appError: "Lỗi: kết nối đến server thất bại." });
     });
   }
 
   onMessageMqtt(msg) {
-
     AsyncStorage.setItem("@tableData", msg.data);
     this.bindInterVal(msg);
 
@@ -248,7 +304,7 @@ export default class App extends Component {
       }
       let arrayShow = objTableData.arrSingleMachine.slice(tempCurrentSlice, tempEndSilce);
       if (arrayShow.length == this.state.arrayShow.length &&
-        arrayShow.length > 0 && arrayShow[0].machine == this.state.arrayShow[0].machine) {
+        arrayShow.length > 0 && arrayShow[0].machine.machineId == this.state.arrayShow[0].machine.machineId) {
         this.setState({
           arrayShow: arrayShow,
           change: this.state.change == 0 ? 1 : 0
@@ -300,14 +356,14 @@ export default class App extends Component {
     for (var i = 0; i < tableData.length; i++) {
       let itemI = tableData[i];
       temArr = [];
-      if (arrSingleMachine.indexOf(itemI) == -1 && arrPushedMachine.indexOf(itemI.machine) == -1) {
+      if (arrSingleMachine.indexOf(itemI) == -1 && arrPushedMachine.indexOf(itemI.machine.machineId) == -1) {
         arrSingleMachine.push(itemI);
       }
-      if (arrPushedMachine.indexOf(itemI.machine) == -1) {
-        arrPushedMachine.push(itemI.machine);
+      if (arrPushedMachine.indexOf(itemI.machine.machineId) == -1) {
+        arrPushedMachine.push(itemI.machine.machineId);
         for (var j = i + 1; j < tableData.length; j++) {
           let itemJ = tableData[j];
-          if (itemJ.machine == itemI.machine) {
+          if (itemJ.machine.machineId == itemI.machine.machineId) {
             if (temArr.indexOf(itemI) == -1) {
               temArr.push(itemI);
             }
@@ -326,7 +382,7 @@ export default class App extends Component {
   }
 
   render() {
-    const { tableData, arrayShow, newMessage, arrLCD, arrSegment } = this.state;
+    const { tableData, arrayShow, newMessage, arrLCD, arrDepartment, appError } = this.state;
     return (
       <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
         {/* this.state.loadding */}
@@ -340,25 +396,25 @@ export default class App extends Component {
           <View style={styles.rowTitleCon}>
             <View style={styles.logoCon}>
               <Text style={styles.logoTitle}>ASIA DRAGON CORD & TWINE</Text>
-              <Item>
-                <Text style={styles.logoTitle}>Ca: </Text>
+              <Item style={styles.itemBorderNone}>
+                <Text style={styles.logoTitle}>BP: </Text>
                 <Picker
-                  style={{ width: 90, height: 30, color: "#e7fdfd" }}
+                  style={{ width: 260, height: 30, color: "#e7fdfd" }}
                   iosHeader="Select one"
                   mode="dropdown"
-                  selectedValue={this.state.segment}
-                  onValueChange={this.onSegmentChange.bind(this)}
+                  selectedValue={this.state.department}
+                  onValueChange={this.ondepartmentChange.bind(this)}
                 >
                   {
-                    arrSegment.map((item, index) => {
-                      return (<Item key={index} label={item.segmentName} value={item.segmentId} />)
+                    arrDepartment.map((item, index) => {
+                      return (<Item key={index} label={item.departmentName} value={item.departmentId} />)
                     })
                   }
                 </Picker></Item>
               <Item style={styles.itemBorderNone}>
-                <Text style={styles.logoTitle}>Màn hình: </Text>
+                <Text style={styles.logoTitle}>LCD: </Text>
                 <Picker
-                  style={{ width: 110, height: 30, color: "#e7fdfd" }}
+                  style={{ width: 248, height: 30, color: "#e7fdfd" }}
                   iosHeader="Select one"
                   mode="dropdown"
                   selectedValue={this.state.selected1}
@@ -392,7 +448,9 @@ export default class App extends Component {
 
         <Grid style={{ flex: 1, paddingRight: 2 }}>
           <Row style={{ maxHeight: 90 }}>
-            <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
+            <Col style={{
+              borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 90
+            }}>
               <Text style={styles.text}>Máy</Text>
             </Col>
             <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
@@ -434,11 +492,13 @@ export default class App extends Component {
           </Row>
           <Row>
             <FlatList
+              style={{ marginBottom: 4 }}
               data={arrayShow}
               keyExtractor={this._keyExtractor}
               renderItem={this.renderRow.bind(this)}
             /></Row>
         </Grid>
+        <Text style={{ position: "absolute", bottom: 25, left: 5, color: "#fff", fontSize: 15, zIndex: 99999 }}>{appError ? appError : ""}</Text>
       </View >
     )
   }
@@ -451,12 +511,12 @@ export default class App extends Component {
     if (subInterVal) {
       window.clearInterval(subInterVal);
     }
-    
+
     this.setState({
       selected1: value,
       loadding: true
     });
-    let req = { request: { topic: value, segment: this.state.segment, clientId: clientId } };
+    let req = { request: { topic: value, department: this.state.department, clientId: clientId } };
     if (!mqttClient) {
       this.createClient(value);
     }
@@ -468,8 +528,8 @@ export default class App extends Component {
     //this.createClient(value);
   }
 
-  onSegmentChange(value) {
-    AsyncStorage.setItem('@SEGMENT', value.toString());
+  ondepartmentChange(value) {
+    AsyncStorage.setItem('@department', value.toString());
     if (interval) {
       window.clearInterval(interval);
     }
@@ -477,11 +537,11 @@ export default class App extends Component {
       window.clearInterval(subInterVal);
     }
     this.setState({
-      segment: value,
+      department: value,
       loadding: true
     });
 
-    let req = { request: { topic: this.state.selected1, segment: value, clientId: clientId } };
+    let req = { request: { topic: this.state.selected1, department: value, clientId: clientId } };
     if (!mqttClient) {
       this.createClient(value);
     }
