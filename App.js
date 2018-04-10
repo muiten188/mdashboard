@@ -389,6 +389,7 @@ export default class App extends Component {
   bindInterVal(msg) {
     const msgObj = JSON.parse(msg.data);
     let tableData = msgObj.data;
+    this.setState({ segment: tableData.segment })
     if (msgObj.clientId != clientId && msgObj.clientId != "all") {
       return;
     }
@@ -520,7 +521,8 @@ export default class App extends Component {
       arrDepartment,
       appError,
       showTable,
-      messageData
+      messageData,
+      segment
     } = this.state;
     return (
       <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
@@ -532,7 +534,7 @@ export default class App extends Component {
           <Spinner size={60} />
         </View> : null}
         {
-          showTable?
+          showTable ?
             <View style={{ flex: 1 }}>
               <View style={styles.rowTitle}>
                 <View style={styles.rowTitleCon}>
@@ -541,7 +543,7 @@ export default class App extends Component {
                     <Item style={styles.itemBorderNone}>
                       <Text style={styles.logoTitle}>BP: </Text>
                       <Picker
-                        style={{ width: 260, height: 30, color: "#e7fdfd" }}
+                        style={{ width: 260, height: 30, color: "black" }}
                         iosHeader="Select one"
                         mode="dropdown"
                         selectedValue={this.state.department}
@@ -556,7 +558,7 @@ export default class App extends Component {
                     <Item style={styles.itemBorderNone}>
                       <Text style={styles.logoTitle}>LCD: </Text>
                       <Picker
-                        style={{ width: 248, height: 30, color: "#e7fdfd" }}
+                        style={{ width: 248, height: 30, color: "black" }}
                         iosHeader="Select one"
                         mode="dropdown"
                         selectedValue={this.state.selected1}
@@ -572,14 +574,7 @@ export default class App extends Component {
                   </View>
                   <View style={styles.titleCon}>
                     <Text style={styles.title}>BẢNG THEO DÕI SẢN XUẤT</Text>
-                    {newMessage ?
-                      <Badge style={{
-                        backgroundColor: '#00A000', position: 'absolute',
-                        bottom: 3, opacity: 0.8,
-                        right: 0, justifyContent: 'center', marginTop: 6
-                      }}>
-                        <Text style={{ fontSize: 22 }}>Dữ liệu mới nhận</Text>
-                      </Badge> : null}
+                    <Text style={styles.titleSub}>{"Ca " + (segment ? segment : "-")}</Text>
                   </View>
                   <View style={styles.dateCon}>
                     <MyDate></MyDate>
@@ -593,43 +588,43 @@ export default class App extends Component {
                   <Col style={{
                     borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 90
                   }}>
-                    <Text style={styles.text}>Máy</Text>
+                    <Text style={styles.text}>MÁY</Text>
                   </Col>
                   <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-                    <Text style={styles.text}>Đơn hàng</Text>
+                    <Text style={styles.text}>ĐƠN HÀNG</Text>
                   </Col>
                   <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-                    <Text style={styles.text}>Code BTP</Text>
+                    <Text style={styles.text}>CODE BTP</Text>
                   </Col>
                   <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-                    <Text style={styles.text}>Màu</Text>
+                    <Text style={styles.text}>MÀU</Text>
                   </Col>
                   <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-                    <Text style={styles.text}>Denier</Text>
+                    <Text style={styles.text}>DENIER</Text>
                   </Col>
                   <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-                    <Text style={styles.text}>K.Hoạch Kg</Text>
+                    <Text style={styles.text}>K.HOẠCH KG</Text>
                   </Col>
                   <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-                    <Text style={styles.text}>Đã SX Kg</Text>
+                    <Text style={styles.text}>ĐÃ SX KG</Text>
                   </Col>
                   <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-                    <Text style={styles.text}>Còn lại Kg</Text>
+                    <Text style={styles.text}>CÒN LẠI KG</Text>
                   </Col>
                   <Col style={{
                     borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 100
                   }}>
-                    <Text style={styles.text}>Ngày sản xuất</Text>
+                    <Text style={styles.text}>NGÀY SẢN XUẤT</Text>
                   </Col>
                   <Col style={{
                     borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 100
                   }}>
-                    <Text style={styles.text}>Ngày hoàn thành</Text>
+                    <Text style={styles.text}>NGÀY HOÀN THÀNH</Text>
                   </Col>
                   <Col style={{
                     borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 100
                   }}>
-                    <Text style={styles.text}>Ngày xuất hàng</Text>
+                    <Text style={styles.text}>NGÀY XUẤT HÀNG</Text>
                   </Col>
                 </Row>
                 <Row>
@@ -640,11 +635,19 @@ export default class App extends Component {
                     renderItem={this.renderRow.bind(this)}
                   /></Row>
               </Grid>
+              {newMessage ?
+                <Badge style={{
+                  backgroundColor: '#00A000', position: 'absolute',
+                  bottom: 8, opacity: 0.8,
+                  right: 6, justifyContent: 'center'
+                }}>
+                  <Text style={{ fontSize: 18 }}>Dữ liệu mới nhận</Text>
+                </Badge> : null}
             </View> :
             messageData.contentType == "TEXT" ?
               <View style={{ flex: 1 }}>
                 <Text style={{ color: '#fff', textAlign: 'center', fontSize: 28, marginTop: 6 }}> {messageData.messageTitle}</Text>
-                <View style={{ flex: 1,paddingLeft:8 }}>
+                <View style={{ flex: 1, paddingLeft: 8 }}>
                   <Text style={{ color: '#fff', textAlign: 'left', fontSize: 25 }}> {messageData.messageContent}</Text>
                 </View>
               </View> :
@@ -735,6 +738,7 @@ const styles = StyleSheet.create({
     height: 100,
     flexDirection: 'column',
     justifyContent: 'center',
+    backgroundColor: '#fff'
   },
   head: { minHeight: 50, backgroundColor: '#f1f8ff' },
   rowTitleCon: {
@@ -742,7 +746,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row'
   },
   logoTitle: {
-    color: "#e7fdfd",
+    color: "black",
     fontSize: 22
   },
   logoCon: {
@@ -756,8 +760,15 @@ const styles = StyleSheet.create({
     flex: 1
   },
   title: {
-    color: '#fff',
-    fontSize: 35
+    color: 'black',
+    fontSize: 31,
+    textAlign: 'center'
+  },
+  titleSub: {
+    color: 'black',
+    fontSize: 28,
+    textAlign: 'center',
+    marginTop: -9
   },
   dateCon: {
     width: 140,
@@ -768,5 +779,5 @@ const styles = StyleSheet.create({
   text: { marginLeft: 5, textAlign: 'center' },
   rowHeader: { height: 100 },
   row: { height: 50 },
-  text: { color: '#efc373', fontSize: 22, textAlign: 'center' }
+  text: { color: '#efc373', fontSize: 20, textAlign: 'center' }
 });

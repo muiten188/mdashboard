@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center'
     },
     dateText: {
-        color: '#ccc',
+        color: 'black',
         fontSize: 20
     }
 });
