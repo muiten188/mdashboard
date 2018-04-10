@@ -14,7 +14,8 @@ import {
   FlatList,
   ListItem,
   AsyncStorage,
-  Alert
+  Alert,
+  Image
 } from 'react-native';
 import { Picker, Item, Label, Spinner, Badge } from 'native-base';
 import FListItem from './listItem';
@@ -30,6 +31,8 @@ let subInterVal = [];
 const mqttClient = null;
 const newMesTimeout = null;
 const connectInterval = null;
+const connectMessageInterval = null;
+const timeOutChange = null;
 function guid() {
   function s4() {
     return Math.floor((1 + Math.random()) * 0x10000)
@@ -46,6 +49,8 @@ export default class App extends Component {
     let lcd = "";
 
     this.state = {
+      messageData: null,
+      showTable: true,
       tableData: [],
       arrayShow: [],
       selected1: lcd,
@@ -64,6 +69,7 @@ export default class App extends Component {
     let arrLCD = [];
     let arrDepartment = [];
     this.getLCD_department()
+    this.createClientMessage();
   }
 
   async getLCD_department() {
@@ -165,6 +171,60 @@ export default class App extends Component {
     return false;
   }
 
+  createClientMessage() {
+    /* create mqtt client */
+    clientId = guid();
+    mqtt.createClient({
+      uri: 'tcp://113.171.23.140:1883',
+      clientId: clientId,
+      keepalive: 60
+    }).then((client) => {
+      mqttClient = client;
+      client.on('closed', () => {
+        this.setState({ appError: 'kết nối đến server đã đóng' });
+        if (!mqttClient) {
+          this.setState({ appError: 'kết nối đến server đã đóng' });
+        }
+        if (!connectMessageInterval) {
+          connectMessageInterval = setInterval(() => {
+            this.reconnectMessage();
+          }, 30000)
+        }
+      });
+      client.on('error', (msg) => {
+        this.setState({ appError: "Lỗi: kết nối đến server thất bại." });
+        if (!connectMessageInterval) {
+          connectMessageInterval = setInterval(() => {
+            this.reconnectMessage();
+          }, 30000)
+        }
+      });
+
+      client.on('message', this.onMessageMqttMessage.bind(this));
+
+      //let req = { request: { topic: topic, department: departmentId, clientId: clientId } };
+
+      client.on('connect', () => {
+        this.setState({ appError: null });
+        if (connectMessageInterval) {
+          clearInterval(connectMessageInterval);
+        }
+        client.subscribe('tcp/listen/message', 2);
+        // client.publish('tcp/outgoing/request', JSON.stringify(req), 2, false);
+      });
+
+      client.connect();
+    }).catch((err) => {
+      this.setState({ appError: "Lỗi: kết nối đến server thất bại." });
+      if (connectMessageInterval) {
+        clearInterval(connectMessageInterval);
+      }
+      connectMessageInterval = setInterval(() => {
+        this.reconnectMessage();
+      }, 30000)
+    });
+  }
+
   createClient(topic, departmentId) {
     /* create mqtt client */
     clientId = guid();
@@ -219,6 +279,37 @@ export default class App extends Component {
     });
   }
 
+  reconnectMessage() {
+    clientId = guid();
+    this.setState({ appError: 'đang kết nối lại server' });
+    mqtt.createClient({
+      uri: 'tcp://113.171.23.140:1883',
+      clientId: clientId,
+      keepalive: 60
+    }).then((client) => {
+      mqttClient = client;
+      client.on('closed', () => {
+        this.setState({ appError: 'kết nối đến server đã đóng' });
+      });
+      client.on('error', (msg) => {
+        this.setState({ appError: "Lỗi: kết nối đến server thất bại." });
+      });
+      client.on('message', this.onMessageMqttMessage.bind(this));
+      //let req = { request: { topic: topic, department: departmentId, clientId: clientId } };
+      client.on('connect', () => {
+        this.setState({ appError: null });
+        if (connectMessageInterval) {
+          clearInterval(connectMessageInterval);
+        }
+        client.subscribe('tcp/listen/message', 2);
+        //client.publish('tcp/outgoing/request', JSON.stringify(req), 2, false);
+      });
+      client.connect();
+    }).catch((err) => {
+      this.setState({ appError: "Lỗi: kết nối đến server thất bại." });
+    });
+  }
+
   reconnect(topic, departmentId) {
     clientId = guid();
     this.setState({ appError: 'đang kết nối lại server' });
@@ -254,6 +345,45 @@ export default class App extends Component {
     AsyncStorage.setItem("@tableData", msg.data);
     this.bindInterVal(msg);
 
+  }
+
+  onMessageMqttMessage(msg) {
+    AsyncStorage.setItem("@messageData", msg.data);
+    const msgObj = JSON.parse(msg.data);
+    if (timeOutChange) {
+      clearTimeout(timeOutChange);
+    }
+    var remainTime = this.countRemainTimer(msgObj.message.endTime);
+    if (remainTime > 0) {
+      this.setState({ showTable: false, messageData: msgObj.message })
+      //
+
+      timeOutChange = setTimeout(() => {
+        this.setState({ showTable: true })
+      }, remainTime * 1000);
+    }
+  }
+
+  countRemainTimer(dt) {
+    var end = new Date(dt);
+
+    var _second = 1000;
+    var _minute = _second * 60;
+    var _hour = _minute * 60;
+    var _day = _hour * 24;
+    var timer;
+    var now = new Date();
+    var distance = end - now;
+    if (distance < 0) {
+      return 0;
+    }
+    var days = Math.floor(distance / _day);
+    var hours = Math.floor((distance % _day) / _hour);
+    var minutes = Math.floor((distance % _hour) / _minute);
+    var seconds = Math.floor((distance % _minute) / _second);
+    var remainSecond = (days * 86400) + (hours * 3600) + (minutes * 60) + seconds
+    console.log('remain :' + remainSecond);
+    return remainSecond;
   }
 
   bindInterVal(msg) {
@@ -382,7 +512,16 @@ export default class App extends Component {
   }
 
   render() {
-    const { tableData, arrayShow, newMessage, arrLCD, arrDepartment, appError } = this.state;
+    const {
+      tableData,
+      arrayShow,
+      newMessage,
+      arrLCD,
+      arrDepartment,
+      appError,
+      showTable,
+      messageData
+    } = this.state;
     return (
       <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
         {/* this.state.loadding */}
@@ -392,112 +531,132 @@ export default class App extends Component {
         }}>
           <Spinner size={60} />
         </View> : null}
-        <View style={styles.rowTitle}>
-          <View style={styles.rowTitleCon}>
-            <View style={styles.logoCon}>
-              <Text style={styles.logoTitle}>ASIA DRAGON CORD & TWINE</Text>
-              <Item style={styles.itemBorderNone}>
-                <Text style={styles.logoTitle}>BP: </Text>
-                <Picker
-                  style={{ width: 260, height: 30, color: "#e7fdfd" }}
-                  iosHeader="Select one"
-                  mode="dropdown"
-                  selectedValue={this.state.department}
-                  onValueChange={this.ondepartmentChange.bind(this)}
-                >
-                  {
-                    arrDepartment.map((item, index) => {
-                      return (<Item key={index} label={item.departmentName} value={item.departmentId} />)
-                    })
-                  }
-                </Picker></Item>
-              <Item style={styles.itemBorderNone}>
-                <Text style={styles.logoTitle}>LCD: </Text>
-                <Picker
-                  style={{ width: 248, height: 30, color: "#e7fdfd" }}
-                  iosHeader="Select one"
-                  mode="dropdown"
-                  selectedValue={this.state.selected1}
-                  onValueChange={this.onValueChange.bind(this)}
-                >
-                  {
-                    arrLCD.map((item, index) => {
-                      return (<Item key={index} label={item.deviceName} value={item.deviceTopic} />)
-                    })
-                  }
-                </Picker>
-              </Item>
-            </View>
-            <View style={styles.titleCon}>
-              <Text style={styles.title}>BẢNG THEO DÕI SẢN XUẤT</Text>
-              {newMessage ?
-                <Badge style={{
-                  backgroundColor: '#00A000', position: 'absolute',
-                  bottom: 3, opacity: 0.8,
-                  right: 0, justifyContent: 'center', marginTop: 6
-                }}>
-                  <Text style={{ fontSize: 22 }}>Dữ liệu mới nhận</Text>
-                </Badge> : null}
-            </View>
-            <View style={styles.dateCon}>
-              <MyDate></MyDate>
-            </View>
-          </View>
+        {
+          showTable?
+            <View style={{ flex: 1 }}>
+              <View style={styles.rowTitle}>
+                <View style={styles.rowTitleCon}>
+                  <View style={styles.logoCon}>
+                    <Text style={styles.logoTitle}>ASIA DRAGON CORD & TWINE</Text>
+                    <Item style={styles.itemBorderNone}>
+                      <Text style={styles.logoTitle}>BP: </Text>
+                      <Picker
+                        style={{ width: 260, height: 30, color: "#e7fdfd" }}
+                        iosHeader="Select one"
+                        mode="dropdown"
+                        selectedValue={this.state.department}
+                        onValueChange={this.ondepartmentChange.bind(this)}
+                      >
+                        {
+                          arrDepartment.map((item, index) => {
+                            return (<Item key={index} label={item.departmentName} value={item.departmentId} />)
+                          })
+                        }
+                      </Picker></Item>
+                    <Item style={styles.itemBorderNone}>
+                      <Text style={styles.logoTitle}>LCD: </Text>
+                      <Picker
+                        style={{ width: 248, height: 30, color: "#e7fdfd" }}
+                        iosHeader="Select one"
+                        mode="dropdown"
+                        selectedValue={this.state.selected1}
+                        onValueChange={this.onValueChange.bind(this)}
+                      >
+                        {
+                          arrLCD.map((item, index) => {
+                            return (<Item key={index} label={item.deviceName} value={item.deviceTopic} />)
+                          })
+                        }
+                      </Picker>
+                    </Item>
+                  </View>
+                  <View style={styles.titleCon}>
+                    <Text style={styles.title}>BẢNG THEO DÕI SẢN XUẤT</Text>
+                    {newMessage ?
+                      <Badge style={{
+                        backgroundColor: '#00A000', position: 'absolute',
+                        bottom: 3, opacity: 0.8,
+                        right: 0, justifyContent: 'center', marginTop: 6
+                      }}>
+                        <Text style={{ fontSize: 22 }}>Dữ liệu mới nhận</Text>
+                      </Badge> : null}
+                  </View>
+                  <View style={styles.dateCon}>
+                    <MyDate></MyDate>
+                  </View>
+                </View>
 
-        </View>
+              </View>
 
-        <Grid style={{ flex: 1, paddingRight: 2 }}>
-          <Row style={{ maxHeight: 90 }}>
-            <Col style={{
-              borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 90
-            }}>
-              <Text style={styles.text}>Máy</Text>
-            </Col>
-            <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-              <Text style={styles.text}>Đơn hàng</Text>
-            </Col>
-            <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-              <Text style={styles.text}>Code BTP</Text>
-            </Col>
-            <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-              <Text style={styles.text}>Màu</Text>
-            </Col>
-            <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-              <Text style={styles.text}>Denier</Text>
-            </Col>
-            <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-              <Text style={styles.text}>K.Hoạch Kg</Text>
-            </Col>
-            <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-              <Text style={styles.text}>Đã SX Kg</Text>
-            </Col>
-            <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-              <Text style={styles.text}>Còn lại Kg</Text>
-            </Col>
-            <Col style={{
-              borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 100
-            }}>
-              <Text style={styles.text}>Ngày sản xuất</Text>
-            </Col>
-            <Col style={{
-              borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 100
-            }}>
-              <Text style={styles.text}>Ngày hoàn thành</Text>
-            </Col>
-            <Col style={{
-              borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 100
-            }}>
-              <Text style={styles.text}>Ngày xuất hàng</Text>
-            </Col>
-          </Row>
-          <Row>
-            <FlatList
-              style={{ marginBottom: 4 }}
-              data={arrayShow}
-              keyExtractor={this._keyExtractor}
-              renderItem={this.renderRow.bind(this)}
-            /></Row>
-        </Grid>
+              <Grid style={{ flex: 1, paddingRight: 2 }}>
+                <Row style={{ maxHeight: 90 }}>
+                  <Col style={{
+                    borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 90
+                  }}>
+                    <Text style={styles.text}>Máy</Text>
+                  </Col>
+                  <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
+                    <Text style={styles.text}>Đơn hàng</Text>
+                  </Col>
+                  <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
+                    <Text style={styles.text}>Code BTP</Text>
+                  </Col>
+                  <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
+                    <Text style={styles.text}>Màu</Text>
+                  </Col>
+                  <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
+                    <Text style={styles.text}>Denier</Text>
+                  </Col>
+                  <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
+                    <Text style={styles.text}>K.Hoạch Kg</Text>
+                  </Col>
+                  <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
+                    <Text style={styles.text}>Đã SX Kg</Text>
+                  </Col>
+                  <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
+                    <Text style={styles.text}>Còn lại Kg</Text>
+                  </Col>
+                  <Col style={{
+                    borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 100
+                  }}>
+                    <Text style={styles.text}>Ngày sản xuất</Text>
+                  </Col>
+                  <Col style={{
+                    borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 100
+                  }}>
+                    <Text style={styles.text}>Ngày hoàn thành</Text>
+                  </Col>
+                  <Col style={{
+                    borderWidth: 0.25, borderColor: '#d6d7da', justifyContent: 'center', width: 100
+                  }}>
+                    <Text style={styles.text}>Ngày xuất hàng</Text>
+                  </Col>
+                </Row>
+                <Row>
+                  <FlatList
+                    style={{ marginBottom: 4 }}
+                    data={arrayShow}
+                    keyExtractor={this._keyExtractor}
+                    renderItem={this.renderRow.bind(this)}
+                  /></Row>
+              </Grid>
+            </View> :
+            messageData.contentType == "TEXT" ?
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#fff', textAlign: 'center', fontSize: 28, marginTop: 6 }}> {messageData.messageTitle}</Text>
+                <View style={{ flex: 1,paddingLeft:8 }}>
+                  <Text style={{ color: '#fff', textAlign: 'left', fontSize: 25 }}> {messageData.messageContent}</Text>
+                </View>
+              </View> :
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <Image
+                  resizeMode="contain"
+                  style={{ width: '100%', height: '100%' }}
+                  source={{ uri: messageData.messageImageUrl }}
+                />
+              </View>
+        }
+
         <Text style={{ position: "absolute", bottom: 25, left: 5, color: "#fff", fontSize: 15, zIndex: 99999 }}>{appError ? appError : ""}</Text>
       </View >
     )
