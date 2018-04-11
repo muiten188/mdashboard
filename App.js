@@ -389,7 +389,7 @@ export default class App extends Component {
   bindInterVal(msg) {
     const msgObj = JSON.parse(msg.data);
     let tableData = msgObj.data;
-    this.setState({ segment: tableData.segment })
+    this.setState({ segment: msgObj.segment ? msgObj.segment.segmentName : null })
     if (msgObj.clientId != clientId && msgObj.clientId != "all") {
       return;
     }
@@ -574,7 +574,7 @@ export default class App extends Component {
                   </View>
                   <View style={styles.titleCon}>
                     <Text style={styles.title}>BẢNG THEO DÕI SẢN XUẤT</Text>
-                    <Text style={styles.titleSub}>{"Ca " + (segment ? segment : "-")}</Text>
+                    <Text style={styles.titleSub}>{(segment ? segment : "")}</Text>
                   </View>
                   <View style={styles.dateCon}>
                     <MyDate></MyDate>
@@ -646,9 +646,9 @@ export default class App extends Component {
             </View> :
             messageData.contentType == "TEXT" ?
               <View style={{ flex: 1 }}>
-                <Text style={{ color: '#fff', textAlign: 'center', fontSize: 28, marginTop: 6 }}> {messageData.messageTitle}</Text>
-                <View style={{ flex: 1, paddingLeft: 8 }}>
-                  <Text style={{ color: '#fff', textAlign: 'left', fontSize: 25 }}> {messageData.messageContent}</Text>
+                <Text style={{ color: '#fff', textAlign: 'center', fontSize: 35, marginTop: 8 }}> {messageData.messageTitle}</Text>
+                <View style={{ flex: 1, paddingLeft: 8, marginTop: 16 }}>
+                  <Text style={{ color: '#fff', textAlign: 'center', fontSize: 25 }}> {messageData.messageContent}</Text>
                 </View>
               </View> :
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
