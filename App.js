@@ -603,10 +603,10 @@ export default class App extends Component {
                     <Text style={styles.text}>DENIER</Text>
                   </Col>
                   <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-                    <Text style={styles.text}>K.HOẠCH KG</Text>
+                    <Text style={styles.text}>KẾ HOẠCH KG</Text>
                   </Col>
                   <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
-                    <Text style={styles.text}>ĐÃ SX KG</Text>
+                    <Text style={styles.text}>ĐÃ SẢN XUẤT KG</Text>
                   </Col>
                   <Col style={[styles.colBorder, { justifyContent: 'center' }]}>
                     <Text style={styles.text}>CÒN LẠI KG</Text>
